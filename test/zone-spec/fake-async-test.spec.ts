@@ -12,7 +12,6 @@ import '../../lib/rxjs/rxjs-fake-async';
 import {Observable} from 'rxjs/Observable';
 
 import {isNode, patchMacroTask} from '../../lib/common/utils';
-import {discardPeriodicTasks, fakeAsync, flush, flushMicrotasks, tick} from '../../lib/testing/fake-async';
 import {ifEnvSupports} from '../test-util';
 
 function supportNode() {
@@ -978,6 +977,8 @@ class Log {
 
 const resolvedPromise = Promise.resolve(null);
 const ProxyZoneSpec: {assertPresent: () => void} = (Zone as any)['ProxyZoneSpec'];
+const fakeAsyncTestModule = (Zone as any)[Zone.__symbol__('fakeAsyncTest')];
+const {fakeAsync, tick, discardPeriodicTasks, flush, flushMicrotasks} = fakeAsyncTestModule;
 
 {
   describe('fake async', () => {
