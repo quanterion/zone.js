@@ -340,6 +340,7 @@
         return;
       }
       global['Date'] = FakeDate;
+      FakeDate.prototype = OriginalDate.prototype;
     }
 
     static resetDate() {
