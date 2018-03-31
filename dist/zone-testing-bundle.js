@@ -4108,6 +4108,7 @@ Zone['AsyncTestZoneSpec'] = AsyncTestZoneSpec;
                 return;
             }
             global['Date'] = FakeDate;
+            FakeDate.prototype = OriginalDate.prototype;
         };
         FakeAsyncTestZoneSpec.resetDate = function () {
             if (global['Date'] === FakeDate) {
