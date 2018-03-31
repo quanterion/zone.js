@@ -31,35 +31,33 @@ Zone.__load_patch('fakeasync', (global: any, Zone: ZoneType, api: _ZonePrivate) 
     ProxyZoneSpec && ProxyZoneSpec.assertPresent().resetDelegate();
   }
 
-  let _inFakeAsyncCall = false;
-
   /**
- * Wraps a function to be executed in the fakeAsync zone:
- * - microtasks are manually executed by calling `flushMicrotasks()`,
- * - timers are synchronous, `tick()` simulates the asynchronous passage of time.
- *
- * If there are any pending timers at the end of the function, an exception will be thrown.
- *
- * Can be used to wrap inject() calls.
- *
- * ## Example
- *
- * {@example core/testing/ts/fake_async.ts region='basic'}
- *
- * @param fn
- * @returns The function wrapped to be executed in the fakeAsync zone
- *
- * @experimental
- */
+  * Wraps a function to be executed in the fakeAsync zone:
+  * - microtasks are manually executed by calling `flushMicrotasks()`,
+  * - timers are synchronous, `tick()` simulates the asynchronous passage of time.
+  *
+  * If there are any pending timers at the end of the function, an exception will be thrown.
+  *
+  * Can be used to wrap inject() calls.
+  *
+  * ## Example
+  *
+  * {@example core/testing/ts/fake_async.ts region='basic'}
+  *
+  * @param fn
+  * @returns The function wrapped to be executed in the fakeAsync zone
+  *
+  * @experimental
+  */
   function fakeAsync(fn: Function): (...args: any[]) => any {
     // Not using an arrow function to preserve context passed from call site
     return function(...args: any[]) {
       const proxyZoneSpec = ProxyZoneSpec.assertPresent();
-      if (_inFakeAsyncCall) {
+      if (Zone.current.get('FakeAsyncTestZoneSpec')) {
         throw new Error('fakeAsync() calls can not be nested');
       }
-      _inFakeAsyncCall = true;
       try {
+        // in case jasmine.clock init a fakeAsyncTestZoneSpec
         if (!_fakeAsyncTestZoneSpec) {
           if (proxyZoneSpec.getDelegate() instanceof FakeAsyncTestZoneSpec) {
             throw new Error('fakeAsync() calls can not be nested');
@@ -91,7 +89,6 @@ Zone.__load_patch('fakeasync', (global: any, Zone: ZoneType, api: _ZonePrivate) 
         }
         return res;
       } finally {
-        _inFakeAsyncCall = false;
         resetFakeAsyncZone();
       }
     };
@@ -99,7 +96,10 @@ Zone.__load_patch('fakeasync', (global: any, Zone: ZoneType, api: _ZonePrivate) 
 
   function _getFakeAsyncZoneSpec(): any {
     if (_fakeAsyncTestZoneSpec == null) {
-      throw new Error('The code should be running in the fakeAsync zone to call this function');
+      _fakeAsyncTestZoneSpec = Zone.current.get('FakeAsyncTestZoneSpec');
+      if (_fakeAsyncTestZoneSpec == null) {
+        throw new Error('The code should be running in the fakeAsync zone to call this function');
+      }
     }
     return _fakeAsyncTestZoneSpec;
   }
@@ -121,15 +121,15 @@ Zone.__load_patch('fakeasync', (global: any, Zone: ZoneType, api: _ZonePrivate) 
   }
 
   /**
- * Simulates the asynchronous passage of time for the timers in the fakeAsync zone by
- * draining the macrotask queue until it is empty. The returned value is the milliseconds
- * of time that would have been elapsed.
- *
- * @param maxTurns
- * @returns The simulated time elapsed, in millis.
- *
- * @experimental
- */
+   * Simulates the asynchronous passage of time for the timers in the fakeAsync zone by
+   * draining the macrotask queue until it is empty. The returned value is the milliseconds
+   * of time that would have been elapsed.
+   *
+   * @param maxTurns
+   * @returns The simulated time elapsed, in millis.
+   *
+   * @experimental
+   */
   function flush(maxTurns?: number): number {
     return _getFakeAsyncZoneSpec().flush(maxTurns);
   }
