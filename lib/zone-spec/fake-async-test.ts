@@ -29,6 +29,7 @@
     callbackArgs?: any;
   }
 
+  const enableClockPatch = global[Zone.__symbol__('fakeAsyncPatchLock')] === true;
   const OriginalDate = global.Date;
   class FakeDate {
     constructor() {
