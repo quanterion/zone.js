@@ -18,6 +18,7 @@
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
  */
+var _global = typeof window !== 'undefined' && window || typeof self !== 'undefined' && self || global;
 var AsyncTestZoneSpec = /** @class */ (function () {
     function AsyncTestZoneSpec(finishCallback, failCallback, namePrefix) {
         this.finishCallback = finishCallback;
@@ -28,12 +29,19 @@ var AsyncTestZoneSpec = /** @class */ (function () {
         this._isSync = false;
         this.runZone = Zone.current;
         this.unresolvedChainedPromiseCount = 0;
+        this.supportWaitUnresolvedChainedPromise = false;
         this.name = 'asyncTestZone for ' + namePrefix;
         this.properties = { 'AsyncTestZoneSpec': this };
+        this.supportWaitUnresolvedChainedPromise =
+            _global[Zone.__symbol__('supportWaitUnResolvedChainedPromise')] === true;
     }
+    AsyncTestZoneSpec.prototype.isUnresolvedChainedPromisePending = function () {
+        return this.unresolvedChainedPromiseCount > 0;
+    };
     AsyncTestZoneSpec.prototype._finishCallbackIfDone = function () {
         var _this = this;
-        if (!(this._pendingMicroTasks || this._pendingMacroTasks)) {
+        if (!(this._pendingMicroTasks || this._pendingMacroTasks ||
+            (this.supportWaitUnresolvedChainedPromise && this.isUnresolvedChainedPromisePending()))) {
             // We do this because we would like to catch unhandled rejected promises.
             this.runZone.run(function () {
                 setTimeout(function () {
@@ -45,12 +53,18 @@ var AsyncTestZoneSpec = /** @class */ (function () {
         }
     };
     AsyncTestZoneSpec.prototype.patchPromiseForTest = function () {
+        if (!this.supportWaitUnresolvedChainedPromise) {
+            return;
+        }
         var patchPromiseForTest = Promise[Zone.__symbol__('patchPromiseForTest')];
         if (patchPromiseForTest) {
             patchPromiseForTest();
         }
     };
     AsyncTestZoneSpec.prototype.unPatchPromiseForTest = function () {
+        if (!this.supportWaitUnresolvedChainedPromise) {
+            return;
+        }
         var unPatchPromiseForTest = Promise[Zone.__symbol__('unPatchPromiseForTest')];
         if (unPatchPromiseForTest) {
             unPatchPromiseForTest();
@@ -199,6 +213,7 @@ Zone.__load_patch('asynctest', function (global, Zone, api) {
                     // it's OK.
                     proxyZoneSpec.setDelegate(previousDelegate);
                 }
+                testZoneSpec.unPatchPromiseForTest();
                 currentZone.run(function () {
                     finishCallback();
                 });
@@ -208,11 +223,13 @@ Zone.__load_patch('asynctest', function (global, Zone, api) {
                     // Only reset the zone spec if it's sill this one. Otherwise, assume it's OK.
                     proxyZoneSpec.setDelegate(previousDelegate);
                 }
+                testZoneSpec.unPatchPromiseForTest();
                 currentZone.run(function () {
                     failCallback(error);
                 });
             }, 'test');
             proxyZoneSpec.setDelegate(testZoneSpec);
+            testZoneSpec.patchPromiseForTest();
         });
         return Zone.current.runGuarded(fn, context);
     }
