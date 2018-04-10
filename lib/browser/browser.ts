@@ -23,14 +23,31 @@ Zone.__load_patch('util', (global: any, Zone: ZoneType, api: _ZonePrivate) => {
   api.patchOnProperties = patchOnProperties;
   api.patchMethod = patchMethod;
   api.bindArguments = bindArguments;
+  return undefined;
 });
 
-Zone.__load_patch('timers', (global: any) => {
-  const set = 'set';
-  const clear = 'clear';
-  patchTimer(global, set, clear, 'Timeout');
-  patchTimer(global, set, clear, 'Interval');
-  patchTimer(global, set, clear, 'Immediate');
+Zone.__load_patch('timers', (global: any, Zone: ZoneType, api: _ZonePrivate) => {
+  const timerMethods = ['Timeout', 'Interval', 'Immediate'];
+  timerMethods.forEach(m => patchTimer(global, 'set', 'clear', m));
+  const patchedMethods: any = {
+    setTimeout: global.setTimeout,
+    setInterval: global.setInterval,
+    Immediate: global.setImmediate
+  };
+  return {
+    unPatchFn: () => {
+      timerMethods.forEach(m => {
+        global['set' + m] = global[api.symbol('set' + m)];
+        global['clear' + m] = global[api.symbol('clear' + m)];
+      });
+    },
+    rePatchFn: () => {
+      timerMethods.forEach(m => {
+        global['set' + m] = patchedMethods['set' + m];
+        global['clear' + m] = patchedMethods['clear' + m];
+      });
+    }
+  };
 });
 
 Zone.__load_patch('requestAnimationFrame', (global: any) => {

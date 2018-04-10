@@ -306,11 +306,25 @@ interface ZoneType {
   __load_patch(name: string, fn: _PatchFn): void;
 
   /** @internal */
+  __unload_patch(name: string): void;
+
+  /** @internal */
+  __unloadAll_patch(): void;
+
+  /** @internal */
+  __reload_patch(name: string): void;
+
+  /** @internal */
+  __reloadAll_patch(): void;
+
+  /** @internal */
   __symbol__(name: string): string;
 }
 
 /** @internal */
-type _PatchFn = (global: Window, Zone: ZoneType, api: _ZonePrivate) => void;
+type _PatchFn = (global: Window, Zone: ZoneType, api: _ZonePrivate) => {
+  unPatchFn: () => void, rePatchFn: () => void
+};
 
 /** @internal */
 interface _ZonePrivate {
@@ -684,9 +698,46 @@ const Zone: ZoneType = (function(global: any) {
       } else if (!global['__Zone_disable_' + name]) {
         const perfName = 'Zone:' + name;
         mark(perfName);
-        patches[name] = fn(global, Zone, _api);
+        const patchResult = fn(global, Zone, _api);
+        patches[name] = {
+          patched: true,
+          unPatchFn: patchResult && patchResult.unPatchFn,
+          rePatchFn: patchResult && patchResult.rePatchFn,
+        };
         performanceMeasure(perfName, perfName);
       }
+    }
+
+    static __unload_patch(name: string): void {
+      const patch = patches[name];
+      if (patch && patch.unPatchFn && patch.patched) {
+        patch.patched = false;
+        patch.unPatchFn();
+      }
+    }
+
+    static __unloadAll_patch(): void {
+      Object.keys(patches).forEach(name => {
+        if (patches.hasOwnProperty(name)) {
+          Zone.__unload_patch(name);
+        }
+      });
+    }
+
+    static __reload_patch(name: string): void {
+      const patch = patches[name];
+      if (patch && patch.rePatchFn && !patch.patched) {
+        patch.patched = true;
+        patch.rePatchFn();
+      }
+    }
+
+    static __reloadAll_patch(): void {
+      Object.keys(patches).forEach(name => {
+        if (patches.hasOwnProperty(name)) {
+          Zone.__reload_patch(name);
+        }
+      });
     }
 
     public get parent(): AmbientZone {
@@ -1314,7 +1365,8 @@ const Zone: ZoneType = (function(global: any) {
   const microTask: 'microTask' = 'microTask', macroTask: 'macroTask' = 'macroTask',
                    eventTask: 'eventTask' = 'eventTask';
 
-  const patches: {[key: string]: any} = {};
+  const patches:
+      {[key: string]: {patched: boolean, unPatchFn?: () => void, rePatchFn?: () => void}} = {};
   const _api: _ZonePrivate = {
     symbol: __symbol__,
     currentZoneFrame: () => _currentZoneFrame,
