@@ -177,8 +177,15 @@ Zone.__load_patch('XHR', (global: any, Zone: ZoneType) => {
         });
 
     const XMLHTTPREQUEST_SOURCE = 'XMLHttpRequest.send';
+    const fetchTaskScheduling = zoneSymbol('fetchTaskScheduling');
     const sendNative: Function =
         patchMethod(XMLHttpRequestPrototype, 'send', () => function(self: any, args: any[]) {
+          if ((Zone.current as any)[fetchTaskScheduling]) {
+            // a fetch is scheduling, so we are using xhr to polyfill fetch
+            // and because we already schedule macroTask for fetch, we should
+            // not schedule a macroTask for xhr again
+            return sendNative.apply(self, args);
+          }
           if (self[XHR_SYNC]) {
             // if the XHR is sync there is no task to schedule, just execute the code.
             return sendNative.apply(self, args);

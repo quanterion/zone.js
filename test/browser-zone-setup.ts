@@ -11,6 +11,7 @@ if (typeof window !== 'undefined') {
 }
 import '../lib/common/to-string';
 import '../lib/browser/browser';
+import '../lib/common/fetch';
 import '../lib/browser/webapis-user-media';
 import '../lib/testing/zone-testing';
 import '../lib/zone-spec/task-tracking';
