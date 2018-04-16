@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <style>
+    table {
+      border-collapse: collapse;
+    }
+
+    table,
+    th,
+    td {
+      border: 1px solid black;
+    }
+
+    ul {
+      font-size: 24px
+    }
+
+    li.testresult {
+      font-size: 16px
+    }
+  </style>
+  <script src='../../dist/zone.js'></script>
+  <script src='./performance_setup.js'></script>
+  <script src='./timeout.js'></script>
+  <script src='./requestAnimationFrame.js'></script>
+  <script>
+    window.onload = function () {
+      var jsonResult = {};
+
+      var div = document.getElementById('tests');
+      var json = document.getElementById('json');
+      var table = document.getElementById('summary');
+
+      var ul = document.createElement('ul');
+      ul.setAttribute('id', 'results');
+      ul.setAttribute('class', 'test');
+      div.appendChild(ul);
+      var tests = window['__zone_symbol__performance_tasks'];
+      for (var i = 0; i < tests.length; i++) {
+        var li = document.createElement('li');
+        li.setAttribute('id', 'test' + i);
+        li.setAttribute('class', 'testresult');
+
+        var button = document.createElement('button');
+        button.innerHTML = 'begin test';
+        button.setAttribute('id', 'buttontest' + i);
+        button.setAttribute('class', 'testbutton');
+        var test = tests[i];
+        button.onclick = function (event) {
+          var target = event.target;
+          var id = target.getAttribute('id').substring(10);
+          var testLi = document.getElementById('test' + id);
+          var result = tests[id].testFn();
+
+          var split = result.displayText.split('\n');
+          jsonResult[tests[id].title] = result.rawData;
+          json.innerHTML = '<div style="display:none">' + JSON.stringify(jsonResult) + '</div>';
+
+          var summary = result.summary;
+          var row = table.insertRow();
+          var cell = row.insertCell();
+          cell.innerHTML = tests[id].title;
+          cell.rowSpan = Object.keys(summary).length;
+          var idx = 0;
+          Object.keys(summary).forEach(function (key) {
+            var tableRow = row;
+            if (idx !== 0) {
+              tableRow = table.insertRow();
+            }
+            var keyCell = tableRow.insertCell();
+            keyCell.innerHTML = key;
+            var valueCell = tableRow.insertCell();
+            valueCell.innerHTML = summary[key] + '%';
+            idx++;
+          });
+
+          for (var j = 0; j < split.length; j++) {
+            var br = document.createElement('br');
+            var s = document.createTextNode(split[j]);
+            testLi.appendChild(br);
+            testLi.appendChild(s);
+          }
+        }
+        var title = document.createTextNode(test.title);
+        li.appendChild(title);
+        li.appendChild(button);
+        ul.appendChild(li);
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <div id="thetext">Hello Zones!</div>
+  <div id="tests"></div>
+  <div>
+    <table id="summary" class="table">
+      <tr class="tableheader">
+        <th>
+          Module
+        </th>
+        <th>
+          API
+        </th>
+        <th>
+          Performance overhead
+        </th>
+      </tr>
+    </table>
+  </div>
+  <div id="json"></div>
+</body>
+
+</html>
